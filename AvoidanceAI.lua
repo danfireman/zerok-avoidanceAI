@@ -80,9 +80,9 @@ local ScytheController = {
         local units = GetUnitsInCylinder(self.pos[1], self.pos[3], 75 + 50)
         for i=1, #units do
             if not (GetUnitAllyTeam(units[i]) == self.allyTeamID) then
-                DefID = GetUnitDefID(units[i])
+                local DefID = GetUnitDefID(units[i])
                 if not(DefID == nil)then
-                    enemyPosition = {GetUnitPosition(units[i])}
+                    local enemyPosition = {GetUnitPosition(units[i])}
                     if(enemyPosition[2]>-30)then
                         if (GetUnitIsDead(units[i]) == false) then
                             local enemyX, _, enemyY = GetUnitPosition(units[i]);
@@ -167,13 +167,13 @@ local function DisableForSpec()
         widgetHandler:RemoveWidget()
     end
 end
- 
- 
+
+
 function widget:Initialize()
     DisableForSpec()
     local units = GetTeamUnits(Spring.GetMyTeamID())
     for i=1, #units do
-        DefID = GetUnitDefID(units[i])
+        local DefID = GetUnitDefID(units[i])
         if (UnitDefs[DefID].name==Scythe_NAME or UnitDefs[DefID].name==Widow_NAME)  then
             if  (ScytheStack[units[i]]==nil) then
                 ScytheStack[units[i]]=ScytheController:new(units[i])
