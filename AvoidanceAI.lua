@@ -83,7 +83,9 @@ local ScytheController = {
                 local DefID = GetUnitDefID(units[i])
                 if not(DefID == nil)then
                     local enemyPosition = {GetUnitPosition(units[i])}
-                    if(enemyPosition[2]>-30)then
+                    local baseY = Spring.GetGroundHeight(self.pos[1], self.pos[3])
+                    -- Don't get spooked by bombers or gunships, unless they're eg blastwings or gnats which really do fly that low, or if they are coming in to land nearby
+                    if(enemyPosition[2]>-30 and enemyPosition[2] - baseY < 85)then
                         if (GetUnitIsDead(units[i]) == false) then
                             local enemyX, _, enemyY = GetUnitPosition(units[i]);
                             local dist = sqrt((self.pos[1] - enemyX) * (self.pos[1] - enemyX) + (self.pos[3] - enemyY) * (self.pos[3] - enemyY));
