@@ -28,6 +28,7 @@ local GetUnitStates = Spring.GetUnitStates
 local Echo = Spring.Echo
 local Scythe_ID = UnitDefNames.cloakheavyraid.id
 local Widow_ID = UnitDefNames.spiderantiheavy.id
+local Gremlin_ID = UnitDefNames.cloakaa.id
 local GetSpecState = Spring.GetSpectatingState
 local CMD_UNIT_SET_TARGET = 34923
 local CMD_UNIT_CANCEL_TARGET = 34924
@@ -39,6 +40,7 @@ local sqrt = math.sqrt
 local decloakRanges = {
     [Scythe_ID] = 75,
     [Widow_ID] = 60,
+    [Gremlin_ID] = 140,
 }
 local decloakRangeGrace = 50
 
