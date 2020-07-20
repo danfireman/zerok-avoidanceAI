@@ -47,10 +47,7 @@ local decloakRangeGrace = 50
 
 local SneakyControllerMT
 local SneakyController = {
-    unitID,
-    pos,
     allyTeamID = GetMyAllyTeamID(),
-    unitDefID,
 
 
     new = function(index, unitID, unitDefID)
