@@ -1,42 +1,33 @@
 function widget:GetInfo()
-   return {
-      name         = "AvoidanceAI",
-      desc         = "attempt to avoid getting into range of nasty things. Meant to be used with return fire state. Version 0,87",
-      author       = "dyth68",
-      date         = "2020",
-      license      = "PD", -- should be compatible with Spring
-      layer        = 11,
-      enabled      = true
-   }
+    return {
+        name         = "AvoidanceAI",
+        desc         = "attempt to avoid getting into range of nasty things. Meant to be used with return fire state. Version 0,87",
+        author       = "dyth68",
+        date         = "2020",
+        license      = "PD", -- should be compatible with Spring
+        layer        = 11,
+        enabled      = true
+    }
 end
 
 
 local UPDATE_FRAME=4
-local ScytheStack = {}
+local SneakyStack = {}
+local GetGroundHeight = Spring.GetGroundHeight
 local GetUnitMaxRange = Spring.GetUnitMaxRange
 local GetUnitPosition = Spring.GetUnitPosition
 local GetMyAllyTeamID = Spring.GetMyAllyTeamID
 local GiveOrderToUnit = Spring.GiveOrderToUnit
-local GetGroundHeight = Spring.GetGroundHeight
-local GetUnitsInSphere = Spring.GetUnitsInSphere
 local GetUnitsInCylinder = Spring.GetUnitsInCylinder
 local GetUnitAllyTeam = Spring.GetUnitAllyTeam
-local GetUnitNearestEnemy = Spring.GetUnitNearestEnemy
 local GetUnitIsDead = Spring.GetUnitIsDead
 local GetMyTeamID = Spring.GetMyTeamID
 local GetUnitDefID = Spring.GetUnitDefID
 local GetTeamUnits = Spring.GetTeamUnits
-local GetUnitArmored = Spring.GetUnitArmored
 local GetUnitStates = Spring.GetUnitStates
-local ENEMY_DETECT_BUFFER  = 40
 local Echo = Spring.Echo
-local Phantom_NAME = "cloaksnipe"
-local Scythe_NAME = "cloakheavyraid"
-local Widow_NAME = "spiderantiheavy"
-local Razor_NAME = "turretaalaser"
-local Halbert_NAME = "hoverassault"
-local Gauss_NAME = "turretgauss"
-local Faraday_NAME = "turretemp"
+local Scythe_ID = UnitDefNames.cloakheavyraid.id
+local Widow_ID = UnitDefNames.spiderantiheavy.id
 local GetSpecState = Spring.GetSpectatingState
 local CMD_UNIT_SET_TARGET = 34923
 local CMD_UNIT_CANCEL_TARGET = 34924
@@ -48,55 +39,50 @@ local sqrt = math.sqrt
 
 
 
-local ScytheController = {
+local SneakyController = {
     unitID,
     pos,
     allyTeamID = GetMyAllyTeamID(),
-    range,
-    forceTarget,
+    unitDefID,
 
 
-    new = function(self, unitID)
-        Echo("ScytheController added:" .. unitID)
+    new = function(self, unitID, unitDefID)
+        Echo("SneakyController added:" .. unitID)
         self = deepcopy(self)
         self.unitID = unitID
-        self.range = GetUnitMaxRange(self.unitID)
+        self.unitDefID = unitDefID
         self.pos = {GetUnitPosition(self.unitID)}
         return self
     end,
 
     unset = function(self)
-        Echo("ScytheController removed:" .. self.unitID)
+        Echo("SneakyController removed:" .. self.unitID)
         GiveOrderToUnit(self.unitID,CMD_STOP, {}, {""},1)
         return nil
     end,
 
-    setForceTarget = function(self, param)
-        self.forceTarget = param[1]
-    end,
-
-
     isEnemyTooClose = function (self)
-        local units = GetUnitsInCylinder(self.pos[1], self.pos[3], 75 + 50)
+        local x,y,z = unpack(self.pos)
+        local units = GetUnitsInCylinder(x, z, 75 + 50)
         for i=1, #units do
             if not (GetUnitAllyTeam(units[i]) == self.allyTeamID) then
                 local DefID = GetUnitDefID(units[i])
                 if not(DefID == nil)then
                     local enemyPosition = {GetUnitPosition(units[i])}
-                    local baseY = Spring.GetGroundHeight(self.pos[1], self.pos[3])
+                    local baseY = GetGroundHeight(x, z)
                     -- Don't get spooked by bombers or gunships, unless they're eg blastwings or gnats which really do fly that low, or if they are coming in to land nearby
                     if(enemyPosition[2]>-30 and enemyPosition[2] - baseY < 85)then
                         if (GetUnitIsDead(units[i]) == false) then
-                            local enemyX, _, enemyY = GetUnitPosition(units[i]);
-                            local dist = sqrt((self.pos[1] - enemyX) * (self.pos[1] - enemyX) + (self.pos[3] - enemyY) * (self.pos[3] - enemyY));
-                            enemyX = self.pos[1] + (self.pos[1] - enemyX) * 50 / dist;
-                            enemyY = self.pos[3] + (self.pos[3] - enemyY) * 50 / dist;
-                            Echo("Scythe order give:" .. self.unitID .. "; from " .. self.pos[1] .. "," .. self.pos[3] .. " to " .. enemyX .. "," .. enemyY);
+                            local enemyX, _, enemyZ = GetUnitPosition(units[i])
+                            local dist = sqrt((x - enemyX) * (x - enemyX) + (z - enemyZ) * (z - enemyZ))
+                            local awayX = x + (x - enemyX) * 50 / dist
+                            local awayZ = z + (z - enemyZ) * 50 / dist
+                            Echo("Scythe order given:" .. self.unitID .. "; from " .. x .. "," .. z .. " to " .. awayX .. "," .. awayZ)
                             Spring.GiveOrderToUnit(self.unitID,
                                 CMD.INSERT,
-                                {0,CMD_ATTACK_MOVE,CMD.OPT_SHIFT, enemyX, self.pos[2], enemyY},
+                                {0,CMD_ATTACK_MOVE,CMD.OPT_SHIFT, awayX, y, awayZ},
                                 {"alt"}
-                            );
+                            )
                             return true
                         end
                     end
@@ -107,8 +93,8 @@ local ScytheController = {
     end,
 
     handle=function(self)
-        local cmdQueue = Spring.GetUnitCommands(self.unitID, 2);
-        local unitStateAppropriate = GetUnitStates(self.unitID).movestate == 0 and Spring.GetUnitIsCloaked(self.unitID);
+        local cmdQueue = Spring.GetUnitCommands(self.unitID, 2)
+        local unitStateAppropriate = GetUnitStates(self.unitID).movestate == 0 and Spring.GetUnitIsCloaked(self.unitID)
         if ((#cmdQueue == 0 or (#cmdQueue > 0 and cmdQueue[1].id == CMD_ATTACK_MOVE)) and unitStateAppropriate) then
             self.pos = {GetUnitPosition(self.unitID)}
             self:isEnemyTooClose()
@@ -116,35 +102,26 @@ local ScytheController = {
     end
 }
 
-function widget:UnitCommand(unitID, unitDefID, unitTeam, cmdID, cmdParams, cmdOpts, cmdTag)
-    if (UnitDefs[unitDefID].name == Scythe_NAME and cmdID == CMD_ATTACK  and #cmdParams == 1) then
-        if (ScytheStack[unitID])then
-            ScytheStack[unitID]:setForceTarget(cmdParams)
-        end
-    end
-end
-
 function widget:UnitFinished(unitID, unitDefID, unitTeam)
-        if (UnitDefs[unitDefID].name==Scythe_NAME or UnitDefs[unitDefID].name==Widow_NAME)
+        if (unitDefID == Scythe_ID or unitDefID == Widow_ID)
         and (unitTeam==GetMyTeamID()) then
-            ScytheStack[unitID] = ScytheController:new(unitID);
+            SneakyStack[unitID] = SneakyController:new(unitID, unitDefID)
         end
 end
 
 function widget:UnitDestroyed(unitID)
-    if not (ScytheStack[unitID]==nil) then
-        ScytheStack[unitID]=ScytheStack[unitID]:unset();
+    if not (SneakyStack[unitID]==nil) then
+        SneakyStack[unitID]=SneakyStack[unitID]:unset()
     end
 end
 
 function widget:GameFrame(n)
     if (n%UPDATE_FRAME==0) then
-        for _,Scythe in pairs(ScytheStack) do
+        for _,Scythe in pairs(SneakyStack) do
             Scythe:handle()
         end
     end
 end
-
 
 function deepcopy(orig)
     local orig_type = type(orig)
@@ -161,8 +138,6 @@ function deepcopy(orig)
     return copy
 end
 
-
-
 -- The rest of the code is there to disable the widget for spectators
 local function DisableForSpec()
     if GetSpecState() then
@@ -170,20 +145,18 @@ local function DisableForSpec()
     end
 end
 
-
 function widget:Initialize()
     DisableForSpec()
-    local units = GetTeamUnits(Spring.GetMyTeamID())
+    local units = GetTeamUnits(GetMyTeamID())
     for i=1, #units do
         local DefID = GetUnitDefID(units[i])
-        if (UnitDefs[DefID].name==Scythe_NAME or UnitDefs[DefID].name==Widow_NAME)  then
-            if  (ScytheStack[units[i]]==nil) then
-                ScytheStack[units[i]]=ScytheController:new(units[i])
+        if (DefID == Scythe_ID or DefID == Widow_ID)  then
+            if  (SneakyStack[units[i]]==nil) then
+                SneakyStack[units[i]]=SneakyController:new(units[i], DefID)
             end
         end
     end
 end
-
 
 function widget:PlayerChanged (playerID)
     DisableForSpec()
