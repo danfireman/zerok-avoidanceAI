@@ -67,30 +67,40 @@ local SneakyController = {
         return nil
     end,
 
+    checkOneEnemyUnitTooClose = function(self, x,y,z, unitDefID, enemyUnitID)
+        if GetUnitAllyTeam(enemyUnitID) == self.allyTeamID then return false end
+        local baseY = GetGroundHeight(x, z)
+        local enemyX, enemyY, enemyZ = GetUnitPosition(enemyUnitID)
+        if enemyY <= -30 then
+            -- disregard underwater units
+            return false
+        end
+        local enemyHeightAboveGround = enemyY - baseY
+        -- Don't get spooked by bombers or gunships, unless they're eg blastwings or gnats which really do fly that low, or if they are coming in to land nearby
+        if enemyHeightAboveGround >= 85 then
+            return false
+        end
+        if GetUnitIsDead(enemyUnitID) then return false end
+        local dist = sqrt((x - enemyX) * (x - enemyX) + (z - enemyZ) * (z - enemyZ))
+        local awayX = x + (x - enemyX) * 50 / dist
+        local awayZ = z + (z - enemyZ) * 50 / dist
+        Echo("Sneaky order given:" .. self.unitID .. "; from " .. x .. "," .. z .. " to " .. awayX .. "," .. awayZ)
+        Spring.GiveOrderToUnit(self.unitID,
+            CMD.INSERT,
+            {0,CMD_ATTACK_MOVE,CMD.OPT_SHIFT, awayX, y, awayZ},
+            {"alt"}
+        )
+        return true
+    end,
+
     isEnemyTooClose = function (self)
         local x,y,z = unpack(self.pos)
         local unitDefID = self.unitDefID
         local units = GetUnitsInCylinder(x, z, decloakRanges[unitDefID] + decloakRangeGrace)
         for i=1, #units do
-            if not (GetUnitAllyTeam(units[i]) == self.allyTeamID) then
-                local enemyPosition = {GetUnitPosition(units[i])}
-                local baseY = GetGroundHeight(x, z)
-                -- Don't get spooked by bombers or gunships, unless they're eg blastwings or gnats which really do fly that low, or if they are coming in to land nearby
-                if(enemyPosition[2]>-30 and enemyPosition[2] - baseY < 85)then
-                    if (GetUnitIsDead(units[i]) == false) then
-                        local enemyX, _, enemyZ = GetUnitPosition(units[i])
-                        local dist = sqrt((x - enemyX) * (x - enemyX) + (z - enemyZ) * (z - enemyZ))
-                        local awayX = x + (x - enemyX) * 50 / dist
-                        local awayZ = z + (z - enemyZ) * 50 / dist
-                        Echo("Sneaky order given:" .. self.unitID .. "; from " .. x .. "," .. z .. " to " .. awayX .. "," .. awayZ)
-                        Spring.GiveOrderToUnit(self.unitID,
-                            CMD.INSERT,
-                            {0,CMD_ATTACK_MOVE,CMD.OPT_SHIFT, awayX, y, awayZ},
-                            {"alt"}
-                        )
-                        return true
-                    end
-                end
+            local enemyUnitID = units[i]
+            if self:checkOneEnemyUnitTooClose(x,y,z, unitDefID, enemyUnitID) then
+                return true
             end
         end
         return false
