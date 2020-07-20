@@ -93,12 +93,11 @@ local SneakyController = {
     end,
 
     handle=function(self)
+        if not (GetUnitStates(self.unitID).movestate == 0 and Spring.GetUnitIsCloaked(self.unitID)) then return end
         local cmdQueue = Spring.GetUnitCommands(self.unitID, 2)
-        local unitStateAppropriate = GetUnitStates(self.unitID).movestate == 0 and Spring.GetUnitIsCloaked(self.unitID)
-        if ((#cmdQueue == 0 or (#cmdQueue > 0 and cmdQueue[1].id == CMD_ATTACK_MOVE)) and unitStateAppropriate) then
-            self.pos = {GetUnitPosition(self.unitID)}
-            self:isEnemyTooClose()
-        end
+        if not (#cmdQueue == 0 or (#cmdQueue > 0 and cmdQueue[1].id == CMD_ATTACK_MOVE)) then return end
+        self.pos = {GetUnitPosition(self.unitID)}
+        self:isEnemyTooClose()
     end
 }
 
