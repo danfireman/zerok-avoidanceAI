@@ -45,6 +45,7 @@ local decloakRanges = {
 local decloakRangeGrace = 50
 
 
+local SneakyControllerMT
 local SneakyController = {
     unitID,
     pos,
@@ -52,9 +53,10 @@ local SneakyController = {
     unitDefID,
 
 
-    new = function(self, unitID, unitDefID)
+    new = function(index, unitID, unitDefID)
         Echo("SneakyController added:" .. unitID)
-        self = deepcopy(self)
+        local self = {}
+        setmetatable(self, SneakyControllerMT)
         self.unitID = unitID
         self.unitDefID = unitDefID
         self.pos = {GetUnitPosition(self.unitID)}
@@ -114,6 +116,7 @@ local SneakyController = {
         self:isEnemyTooClose()
     end
 }
+SneakyControllerMT = {__index=SneakyController}
 
 function widget:UnitFinished(unitID, unitDefID, unitTeam)
         if decloakRanges[unitDefID] and unitTeam==GetMyTeamID() then
@@ -133,21 +136,6 @@ function widget:GameFrame(n)
             Scythe:handle()
         end
     end
-end
-
-function deepcopy(orig)
-    local orig_type = type(orig)
-    local copy
-    if orig_type == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[deepcopy(orig_key)] = deepcopy(orig_value)
-        end
-        setmetatable(copy, deepcopy(getmetatable(orig)))
-    else
-        copy = orig
-    end
-    return copy
 end
 
 -- The rest of the code is there to disable the widget for spectators
