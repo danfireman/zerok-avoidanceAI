@@ -36,7 +36,11 @@ local CMD_ATTACK = CMD.ATTACK
 local CMD_ATTACK_MOVE = 16 -- I should figure out where to get this
 local sqrt = math.sqrt
 
-
+local decloakRanges = {
+    [Scythe_ID] = 75,
+    [Widow_ID] = 60,
+}
+local decloakRangeGrace = 50
 
 
 local SneakyController = {
@@ -63,7 +67,8 @@ local SneakyController = {
 
     isEnemyTooClose = function (self)
         local x,y,z = unpack(self.pos)
-        local units = GetUnitsInCylinder(x, z, 75 + 50)
+        local unitDefID = self.unitDefID
+        local units = GetUnitsInCylinder(x, z, decloakRanges[unitDefID] + decloakRangeGrace)
         for i=1, #units do
             if not (GetUnitAllyTeam(units[i]) == self.allyTeamID) then
                 local DefID = GetUnitDefID(units[i])
@@ -92,7 +97,7 @@ local SneakyController = {
         return false
     end,
 
-    handle=function(self)
+    handle = function(self)
         if not (GetUnitStates(self.unitID).movestate == 0 and Spring.GetUnitIsCloaked(self.unitID)) then return end
         local cmdQueue = Spring.GetUnitCommands(self.unitID, 2)
         if not (#cmdQueue == 0 or (#cmdQueue > 0 and cmdQueue[1].id == CMD_ATTACK_MOVE)) then return end
@@ -102,8 +107,7 @@ local SneakyController = {
 }
 
 function widget:UnitFinished(unitID, unitDefID, unitTeam)
-        if (unitDefID == Scythe_ID or unitDefID == Widow_ID)
-        and (unitTeam==GetMyTeamID()) then
+        if decloakRanges[unitDefID] and unitTeam==GetMyTeamID() then
             SneakyStack[unitID] = SneakyController:new(unitID, unitDefID)
         end
 end
@@ -148,10 +152,10 @@ function widget:Initialize()
     DisableForSpec()
     local units = GetTeamUnits(GetMyTeamID())
     for i=1, #units do
-        local DefID = GetUnitDefID(units[i])
-        if (DefID == Scythe_ID or DefID == Widow_ID)  then
+        local unitDefID = GetUnitDefID(units[i])
+        if (decloakRanges[unitDefID])  then
             if  (SneakyStack[units[i]]==nil) then
-                SneakyStack[units[i]]=SneakyController:new(units[i], DefID)
+                SneakyStack[units[i]]=SneakyController:new(units[i], unitDefID)
             end
         end
     end
